@@ -111,7 +111,7 @@ std::array<std::uint8_t, 256> DecryptDFA::inverse_box = { aes_sbox };
 std::array<std::uint8_t, 256> DecryptDFA::forward_box = { aes_isbox };
 
 template<typename DFA>
-static inline std::array<Fault, 4> convert_r8_fault(Fault r8_fault, Fault r9_reference)
+static inline auto convert_r8_fault(Fault r8_fault, Fault r9_reference)
 {
     const auto masks = DFA::blend_mask();
     static_assert(masks.size() == 4);
@@ -130,8 +130,7 @@ static inline std::array<Fault, 4> convert_r8_fault(Fault r8_fault, Fault r9_ref
 }
 
 template<typename DFA>
-static inline std::array<std::uint8_t, 256> generate_zmap(std::uint8_t diff,
-                                                          std::uint8_t multiplier)
+static inline auto generate_zmap(std::uint8_t diff, std::uint8_t multiplier)
 {
     // we have the equation:
     // Y0 = S(X0) + S(C*Z + X0)
@@ -165,8 +164,12 @@ struct FaultCandidateList
     }
 };
 
-template<typename DFA, int group, int faultrow>
-void calculate_fault_candidates_for_fault(FaultCandidateList& candidates, Fault fault, Fault ref)
+template<typename DFA>
+void calculate_fault_candidates_for_fault(FaultCandidateList& candidates,
+                                          Fault fault,
+                                          Fault ref,
+                                          int group,
+                                          int faultrow)
 {
     constexpr auto Row0Intersection = (1 << 0);
     constexpr auto Row1Intersection = (1 << 1);
@@ -228,19 +231,19 @@ void calculate_fault_candidates_for_fault(FaultCandidateList& candidates, Fault 
     }
 }
 
-template<typename DFA, int group>
-static inline FaultCandidateList calculate_fault_candidate(Fault fault, Fault ref)
+template<typename DFA>
+static inline FaultCandidateList calculate_fault_candidate(Fault fault, Fault ref, int group)
 {
     FaultCandidateList candidates;
-    calculate_fault_candidates_for_fault<DFA, group, 0>(candidates, fault, ref);
-    calculate_fault_candidates_for_fault<DFA, group, 1>(candidates, fault, ref);
-    calculate_fault_candidates_for_fault<DFA, group, 2>(candidates, fault, ref);
-    calculate_fault_candidates_for_fault<DFA, group, 3>(candidates, fault, ref);
+    calculate_fault_candidates_for_fault<DFA>(candidates, fault, ref, group, 0);
+    calculate_fault_candidates_for_fault<DFA>(candidates, fault, ref, group, 1);
+    calculate_fault_candidates_for_fault<DFA>(candidates, fault, ref, group, 2);
+    calculate_fault_candidates_for_fault<DFA>(candidates, fault, ref, group, 3);
     return candidates;
 }
 
-template<typename DFA, int group>
-static inline bool is_group_affected(const Fault fault, const Fault ref)
+template<typename DFA>
+static inline bool is_group_affected(const Fault fault, const Fault ref, int group)
 {
     const auto diff = xor128(fault, ref);
     const auto row0diff = diff[DFA::FaultIndex[group][0]];
@@ -289,27 +292,27 @@ static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_
 
     for (const auto& fault : r9_faults)
     {
-        if (is_group_affected<DFA, 0>(fault, ref) && !keyCandidates[0].solved())
+        if (is_group_affected<DFA>(fault, ref, 0) && !keyCandidates[0].solved())
         {
-            const auto newCandidates = calculate_fault_candidate<DFA, 0>(fault, ref);
+            const auto newCandidates = calculate_fault_candidate<DFA>(fault, ref, 0);
             intersect_candidates(keyCandidates[0], newCandidates);
         }
 
-        else if (is_group_affected<DFA, 1>(fault, ref) && !keyCandidates[1].solved())
+        else if (is_group_affected<DFA>(fault, ref, 1) && !keyCandidates[1].solved())
         {
-            const auto newCandidates = calculate_fault_candidate<DFA, 1>(fault, ref);
+            const auto newCandidates = calculate_fault_candidate<DFA>(fault, ref, 1);
             intersect_candidates(keyCandidates[1], newCandidates);
         }
 
-        else if (is_group_affected<DFA, 2>(fault, ref) && !keyCandidates[2].solved())
+        else if (is_group_affected<DFA>(fault, ref, 2) && !keyCandidates[2].solved())
         {
-            const auto newCandidates = calculate_fault_candidate<DFA, 2>(fault, ref);
+            const auto newCandidates = calculate_fault_candidate<DFA>(fault, ref, 2);
             intersect_candidates(keyCandidates[2], newCandidates);
         }
 
-        else if (is_group_affected<DFA, 3>(fault, ref) && !keyCandidates[3].solved())
+        else if (is_group_affected<DFA>(fault, ref, 3) && !keyCandidates[3].solved())
         {
-            const auto newCandidates = calculate_fault_candidate<DFA, 3>(fault, ref);
+            const auto newCandidates = calculate_fault_candidate<DFA>(fault, ref, 3);
             intersect_candidates(keyCandidates[3], newCandidates);
         }
     }

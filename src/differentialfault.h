@@ -2,6 +2,7 @@
 
 #include "fault.h"
 
+template<typename DFA>
 class DifferentialFault
 {
 public:
@@ -12,7 +13,6 @@ public:
     {
     }
 
-    template<typename DFA>
     bool is_group_affected(int group)
     {
         const auto row0diff = m_diff[DFA::FaultIndex[group][0]];
@@ -23,19 +23,17 @@ public:
         return affected;
     }
 
-    template<typename DFA>
     FaultCandidateList candidates_for_group(int group)
     {
         FaultCandidateList candidates;
-        candidates_for_fault<DFA>(candidates, group, 0);
-        candidates_for_fault<DFA>(candidates, group, 1);
-        candidates_for_fault<DFA>(candidates, group, 2);
-        candidates_for_fault<DFA>(candidates, group, 3);
+        candidates_for_fault(candidates, group, 0);
+        candidates_for_fault(candidates, group, 1);
+        candidates_for_fault(candidates, group, 2);
+        candidates_for_fault(candidates, group, 3);
         return candidates;
     }
 
 private:
-    template<typename DFA>
     auto generate_zmap(std::uint8_t diff, std::uint8_t multiplier)
     {
         // we have the equation:
@@ -54,7 +52,6 @@ private:
         return zmap;
     }
 
-    template<typename DFA>
     void candidates_for_fault(FaultCandidateList& candidates, int group, int faultrow)
     {
         constexpr auto Row0Intersection = (1 << 0);
@@ -64,14 +61,14 @@ private:
         constexpr auto AllRowIntersection =
             Row0Intersection | Row1Intersection | Row2Intersection | Row3Intersection;
 
-        const auto row0 = generate_zmap<DFA>(m_diff[DFA::FaultIndex[group][0]],
-                                             DFA::mix_columns_matrix[faultrow][0]);
-        const auto row1 = generate_zmap<DFA>(m_diff[DFA::FaultIndex[group][1]],
-                                             DFA::mix_columns_matrix[faultrow][1]);
-        const auto row2 = generate_zmap<DFA>(m_diff[DFA::FaultIndex[group][2]],
-                                             DFA::mix_columns_matrix[faultrow][2]);
-        const auto row3 = generate_zmap<DFA>(m_diff[DFA::FaultIndex[group][3]],
-                                             DFA::mix_columns_matrix[faultrow][3]);
+        const auto row0 =
+            generate_zmap(m_diff[DFA::FaultIndex[group][0]], DFA::mix_columns_matrix[faultrow][0]);
+        const auto row1 =
+            generate_zmap(m_diff[DFA::FaultIndex[group][1]], DFA::mix_columns_matrix[faultrow][1]);
+        const auto row2 =
+            generate_zmap(m_diff[DFA::FaultIndex[group][2]], DFA::mix_columns_matrix[faultrow][2]);
+        const auto row3 =
+            generate_zmap(m_diff[DFA::FaultIndex[group][3]], DFA::mix_columns_matrix[faultrow][3]);
 
         std::array<std::uint8_t, 256> intersections = { 0 };
 

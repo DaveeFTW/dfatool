@@ -35,29 +35,29 @@ static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_
 
     for (const auto& r9_fault : r9_faults)
     {
-        DifferentialFault fault{ r9_fault, ref };
+        DifferentialFault<DFA> fault{ r9_fault, ref };
 
-        if (fault.is_group_affected<DFA>(0) && !keyCandidates[0].solved())
+        if (fault.is_group_affected(0) && !keyCandidates[0].solved())
         {
-            const auto newCandidates = fault.candidates_for_group<DFA>(0);
+            const auto newCandidates = fault.candidates_for_group(0);
             intersect_candidates(keyCandidates[0], newCandidates);
         }
 
-        else if (fault.is_group_affected<DFA>(1) && !keyCandidates[1].solved())
+        else if (fault.is_group_affected(1) && !keyCandidates[1].solved())
         {
-            const auto newCandidates = fault.candidates_for_group<DFA>(1);
+            const auto newCandidates = fault.candidates_for_group(1);
             intersect_candidates(keyCandidates[1], newCandidates);
         }
 
-        else if (fault.is_group_affected<DFA>(2) && !keyCandidates[2].solved())
+        else if (fault.is_group_affected(2) && !keyCandidates[2].solved())
         {
-            const auto newCandidates = fault.candidates_for_group<DFA>(2);
+            const auto newCandidates = fault.candidates_for_group(2);
             intersect_candidates(keyCandidates[2], newCandidates);
         }
 
-        else if (fault.is_group_affected<DFA>(3) && !keyCandidates[3].solved())
+        else if (fault.is_group_affected(3) && !keyCandidates[3].solved())
         {
-            const auto newCandidates = fault.candidates_for_group<DFA>(3);
+            const auto newCandidates = fault.candidates_for_group(3);
             intersect_candidates(keyCandidates[3], newCandidates);
         }
     }

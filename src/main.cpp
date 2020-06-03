@@ -1,7 +1,5 @@
 #include "dfa.h"
 
-#include <immintrin.h>
-
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -24,7 +22,7 @@ namespace
         Round9
     };
 
-    std::optional<std::vector<__m128i>> readFaults(const std::string& path)
+    std::optional<std::vector<Fault>> readFaults(const std::string& path)
     {
         std::ifstream file{ path };
 
@@ -34,7 +32,7 @@ namespace
             return {};
         }
 
-        std::vector<__m128i> faults;
+        std::vector<Fault> faults;
         std::string line;
 
         while (std::getline(file, line))
@@ -76,7 +74,7 @@ namespace
                 nibblesRead++;
             }
 
-            faults.push_back(_mm_loadu_si128(reinterpret_cast<const __m128i*>(binaryData.data())));
+            faults.push_back(binaryData);
         }
 
         return faults;
@@ -95,7 +93,7 @@ namespace
     };
 
     template<typename Solver>
-    bool solve(const std::vector<__m128i>& faults)
+    bool solve(const std::vector<Fault>& faults)
     {
         for (auto& ref : faults)
         {
@@ -107,7 +105,7 @@ namespace
     }
 
     template<typename DFA>
-    bool solve(Type type, const std::vector<__m128i>& faults)
+    bool solve(Type type, const std::vector<Fault>& faults)
     {
         switch (type)
         {
@@ -119,7 +117,7 @@ namespace
         }
     }
 
-    bool solve(Mode mode, Type type, const std::vector<__m128i>& faults)
+    bool solve(Mode mode, Type type, const std::vector<Fault>& faults)
     {
         switch (mode)
         {

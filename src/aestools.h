@@ -1,7 +1,5 @@
 #pragma once
 
-#include <immintrin.h>
-
 #include <array>
 #include <cstdint>
 
@@ -344,73 +342,3 @@ static constexpr std::array<std::array<std::uint8_t, 256>, 16> aes_gf_fmult = {
       aes_gf_fmult13,
       aes_gf_fmult14 }
 };
-
-static inline __m128i mix_columns(__m128i state)
-{
-    // INV SUB + INV SHIFT + SUB + SHIFT cancels out leaving only mix column
-    return _mm_aesenc_si128(_mm_aesdeclast_si128(state, _mm_setzero_si128()), _mm_setzero_si128());
-}
-
-static inline __m128i rewind_encrypt(__m128i state, __m128i key)
-{
-    // we want to reverse the encrypt stage rather than perform a decrypt
-    // while similar, we must XOR the round key first, rather than last
-    state = _mm_xor_si128(state, key);
-
-    // set the round key to zero, we have already contributed it
-    return _mm_aesdec_si128(state, _mm_setzero_si128());
-}
-
-static inline __m128i rewind_encrypt_last(__m128i state, __m128i key)
-{
-    // we want to reverse the encrypt stage rather than perform a decrypt
-    // while similar, we must XOR the round key first, rather than last
-    const auto xor_state = _mm_xor_si128(state, key);
-
-    // set the round key to zero, we have already contributed it
-    return _mm_aesdeclast_si128(xor_state, _mm_setzero_si128());
-}
-
-static inline __m128i rewind_decrypt(__m128i state, __m128i key)
-{
-    // we want to reverse the decrypt stage rather than perform an encrypt
-    // while similar, we must XOR the round key first, rather than last
-    state = _mm_xor_si128(state, key);
-
-    // set the round key to zero, we have already contributed it
-    return _mm_aesenc_si128(state, _mm_setzero_si128());
-}
-
-template<int rcon>
-static inline __m128i round_expansion(__m128i key)
-{
-    auto rconxor = _mm_aeskeygenassist_si128(key, rcon);
-    key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
-    key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
-    key = _mm_xor_si128(key, _mm_slli_si128(key, 4));
-    return _mm_xor_si128(key, _mm_shuffle_epi32(rconxor, _MM_SHUFFLE(3, 3, 3, 3)));
-}
-
-template<int rcon>
-static inline __m128i round_reduction(__m128i key)
-{
-    const auto rowxor = _mm_xor_si128(key, _mm_srli_si128(key, 4));
-    const auto rconxor = _mm_aeskeygenassist_si128(_mm_slli_si128(rowxor, 4), rcon);
-    key = _mm_xor_si128(key, _mm_shuffle_epi32(rconxor, _MM_SHUFFLE(3, 3, 3, 3)));
-    return _mm_xor_si128(key, _mm_slli_si128(key, 4));
-}
-
-static inline __m128i reverse_keyschedule(__m128i key)
-{
-    key = round_reduction<0x36>(key); // round 10 -> round 9
-    key = round_reduction<0x1B>(key); // round 9 -> round 8
-    key = round_reduction<0x80>(key); // round 8 -> round 7
-    key = round_reduction<0x40>(key); // round 7 -> round 6
-    key = round_reduction<0x20>(key); // round 6 -> round 5
-    key = round_reduction<0x10>(key); // round 5 -> round 4
-    key = round_reduction<0x08>(key); // round 4 -> round 3
-    key = round_reduction<0x04>(key); // round 3 -> round 2
-    key = round_reduction<0x02>(key); // round 2 -> round 1
-    key = round_reduction<0x01>(key); // round 1 -> round 0
-    return key;
-}

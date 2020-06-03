@@ -4,7 +4,6 @@ project(dfatool)
 
 set (SOURCES
     "src/main.cpp"
-    "src/print.cpp"
 )
 
 add_executable(dfatool ${SOURCES})

@@ -2,44 +2,45 @@
 
 #include "aestools.h"
 #include "fault.h"
-#include "print.h"
-
-#include <immintrin.h>
+#include "u128.h"
 
 #include <array>
 #include <cstdint>
 #include <vector>
 
+using Fault = u128;
+
 struct EncryptDFA
 {
-    static inline std::array<__m128i, 4> blend_mask()
+    static constexpr auto blend_mask()
     {
         constexpr auto F = -1;
         constexpr auto O = 0;
 
         // clang-format off
-    const auto mask0 = _mm_set_epi8(F, O, O, O,
-                                    O, O, O, F,
-                                    O, O, F, O,
-                                    O, F, O, O);
-                        
-    const auto mask1 = _mm_set_epi8(O, F, O, O,
-                                    F, O, O, O,
-                                    O, O, O, F,
-                                    O, O, F, O);
+        constexpr std::array mask0 = {F, O, O, O,
+                                      O, O, O, F,
+                                      O, O, F, O,
+                                      O, F, O, O};
 
-    const auto mask2 = _mm_set_epi8(O, O, F, O,
-                                    O, F, O, O,
-                                    F, O, O, O,
-                                    O, O, O, F);
+        constexpr std::array mask1 = {O, F, O, O,
+                                      F, O, O, O,
+                                      O, O, O, F,
+                                      O, O, F, O};
 
-    const auto mask3 = _mm_set_epi8(O, O, O, F,
-                                    O, O, F, O,
-                                    O, F, O, O,
-                                    F, O, O, O);
+        constexpr std::array mask2 = {O, O, F, O,
+                                      O, F, O, O,
+                                      F, O, O, O,
+                                      O, O, O, F};
+
+        constexpr std::array mask3 = {O, O, O, F,
+                                      O, O, F, O,
+                                      O, F, O, O,
+                                      F, O, O, O};
 
         // clang-format on
-        return { mask0, mask1, mask2, mask3 };
+
+        return std::array{ mask0, mask1, mask2, mask3 };
     }
 
     static std::array<std::uint8_t, 256> inverse_box;
@@ -61,34 +62,35 @@ std::array<std::uint8_t, 256> EncryptDFA::forward_box = { aes_sbox };
 
 struct DecryptDFA
 {
-    static inline std::array<__m128i, 4> blend_mask()
+    static constexpr auto blend_mask()
     {
-        constexpr auto F = -1;
-        constexpr auto O = 0;
+        constexpr auto F = true;
+        constexpr auto O = false;
 
         // clang-format off
-    const auto mask0 = _mm_set_epi8(F, O, O, O,
-                                    O, F, O, O,
-                                    O, O, F, O,
-                                    O, O, O, F);
-                        
-    const auto mask1 = _mm_set_epi8(O, F, O, O,
-                                    O, O, F, O,
-                                    O, O, O, F,
-                                    F, O, O, O);
+        constexpr std::array mask0 = {F, O, O, O,
+                                      O, F, O, O,
+                                      O, O, F, O,
+                                      O, O, O, F};
 
-    const auto mask2 = _mm_set_epi8(O, O, F, O,
-                                    O, O, O, F,
-                                    F, O, O, O,
-                                    O, F, O, O);
+        constexpr std::array mask1 = {O, F, O, O,
+                                      O, O, F, O,
+                                      O, O, O, F,
+                                      F, O, O, O};
 
-    const auto mask3 = _mm_set_epi8(O, O, O, F,
-                                    F, O, O, O,
-                                    O, F, O, O,
-                                    O, O, F, O);
+        constexpr std::array mask2 = {O, O, F, O,
+                                      O, O, O, F,
+                                      F, O, O, O,
+                                      O, F, O, O};
+
+        constexpr std::array mask3 = {O, O, O, F,
+                                      F, O, O, O,
+                                      O, F, O, O,
+                                      O, O, F, O};
 
         // clang-format on
-        return { mask0, mask1, mask2, mask3 };
+
+        return std::array{ mask0, mask1, mask2, mask3 };
     }
 
     static std::array<std::uint8_t, 256> inverse_box;
@@ -109,13 +111,22 @@ std::array<std::uint8_t, 256> DecryptDFA::inverse_box = { aes_sbox };
 std::array<std::uint8_t, 256> DecryptDFA::forward_box = { aes_isbox };
 
 template<typename DFA>
-static inline std::array<__m128i, 4> convert_r8_fault(__m128i r8_fault, __m128i r9_reference)
+static inline std::array<Fault, 4> convert_r8_fault(Fault r8_fault, Fault r9_reference)
 {
     const auto masks = DFA::blend_mask();
-    return { _mm_blendv_epi8(r9_reference, r8_fault, masks[0]),
-             _mm_blendv_epi8(r9_reference, r8_fault, masks[1]),
-             _mm_blendv_epi8(r9_reference, r8_fault, masks[2]),
-             _mm_blendv_epi8(r9_reference, r8_fault, masks[3]) };
+    static_assert(masks.size() == 4);
+
+    std::array<Fault, 4> r9_faults;
+
+    for (auto i = 0u; i < sizeof(Fault); ++i)
+    {
+        r9_faults[0][i] = masks[0][i] ? (r8_fault[i]) : (r9_reference[i]);
+        r9_faults[1][i] = masks[1][i] ? (r8_fault[i]) : (r9_reference[i]);
+        r9_faults[2][i] = masks[2][i] ? (r8_fault[i]) : (r9_reference[i]);
+        r9_faults[3][i] = masks[3][i] ? (r8_fault[i]) : (r9_reference[i]);
+    }
+
+    return r9_faults;
 }
 
 template<typename DFA>
@@ -155,9 +166,7 @@ struct FaultCandidateList
 };
 
 template<typename DFA, int group, int faultrow>
-void calculate_fault_candidates_for_fault(FaultCandidateList& candidates,
-                                          __m128i fault,
-                                          __m128i ref)
+void calculate_fault_candidates_for_fault(FaultCandidateList& candidates, Fault fault, Fault ref)
 {
     constexpr auto Row0Intersection = (1 << 0);
     constexpr auto Row1Intersection = (1 << 1);
@@ -166,15 +175,15 @@ void calculate_fault_candidates_for_fault(FaultCandidateList& candidates,
     constexpr auto AllRowIntersection =
         Row0Intersection | Row1Intersection | Row2Intersection | Row3Intersection;
 
-    const auto diff = _mm_xor_si128(fault, ref);
-    const auto row0 = generate_zmap<DFA>(_mm_extract_epi8(diff, DFA::FaultIndex[group][0]),
-                                         DFA::mix_columns_matrix[faultrow][0]);
-    const auto row1 = generate_zmap<DFA>(_mm_extract_epi8(diff, DFA::FaultIndex[group][1]),
-                                         DFA::mix_columns_matrix[faultrow][1]);
-    const auto row2 = generate_zmap<DFA>(_mm_extract_epi8(diff, DFA::FaultIndex[group][2]),
-                                         DFA::mix_columns_matrix[faultrow][2]);
-    const auto row3 = generate_zmap<DFA>(_mm_extract_epi8(diff, DFA::FaultIndex[group][3]),
-                                         DFA::mix_columns_matrix[faultrow][3]);
+    const auto diff = xor128(fault, ref);
+    const auto row0 =
+        generate_zmap<DFA>(diff[DFA::FaultIndex[group][0]], DFA::mix_columns_matrix[faultrow][0]);
+    const auto row1 =
+        generate_zmap<DFA>(diff[DFA::FaultIndex[group][1]], DFA::mix_columns_matrix[faultrow][1]);
+    const auto row2 =
+        generate_zmap<DFA>(diff[DFA::FaultIndex[group][2]], DFA::mix_columns_matrix[faultrow][2]);
+    const auto row3 =
+        generate_zmap<DFA>(diff[DFA::FaultIndex[group][3]], DFA::mix_columns_matrix[faultrow][3]);
 
     std::array<std::uint8_t, 256> intersections = { 0 };
 
@@ -198,33 +207,29 @@ void calculate_fault_candidates_for_fault(FaultCandidateList& candidates,
         {
             if (row0[j] == i)
             {
-                candidate.add(
-                    DFA::forward_box[j] ^ _mm_extract_epi8(ref, DFA::FaultIndex[group][0]), 0);
+                candidate.add(DFA::forward_box[j] ^ ref[DFA::FaultIndex[group][0]], 0);
             }
 
             if (row1[j] == i)
             {
-                candidate.add(
-                    DFA::forward_box[j] ^ _mm_extract_epi8(ref, DFA::FaultIndex[group][1]), 1);
+                candidate.add(DFA::forward_box[j] ^ ref[DFA::FaultIndex[group][1]], 1);
             }
 
             if (row2[j] == i)
             {
-                candidate.add(
-                    DFA::forward_box[j] ^ _mm_extract_epi8(ref, DFA::FaultIndex[group][2]), 2);
+                candidate.add(DFA::forward_box[j] ^ ref[DFA::FaultIndex[group][2]], 2);
             }
 
             if (row3[j] == i)
             {
-                candidate.add(
-                    DFA::forward_box[j] ^ _mm_extract_epi8(ref, DFA::FaultIndex[group][3]), 3);
+                candidate.add(DFA::forward_box[j] ^ ref[DFA::FaultIndex[group][3]], 3);
             }
         }
     }
 }
 
 template<typename DFA, int group>
-static inline FaultCandidateList calculate_fault_candidate(__m128i fault, __m128i ref)
+static inline FaultCandidateList calculate_fault_candidate(Fault fault, Fault ref)
 {
     FaultCandidateList candidates;
     calculate_fault_candidates_for_fault<DFA, group, 0>(candidates, fault, ref);
@@ -235,13 +240,13 @@ static inline FaultCandidateList calculate_fault_candidate(__m128i fault, __m128
 }
 
 template<typename DFA, int group>
-static inline bool is_group_affected(const __m128i fault, const __m128i ref)
+static inline bool is_group_affected(const Fault fault, const Fault ref)
 {
-    const auto diff = _mm_xor_si128(fault, ref);
-    const auto row0diff = _mm_extract_epi8(diff, DFA::FaultIndex[group][0]);
-    const auto row1diff = _mm_extract_epi8(diff, DFA::FaultIndex[group][1]);
-    const auto row2diff = _mm_extract_epi8(diff, DFA::FaultIndex[group][2]);
-    const auto row3diff = _mm_extract_epi8(diff, DFA::FaultIndex[group][3]);
+    const auto diff = xor128(fault, ref);
+    const auto row0diff = diff[DFA::FaultIndex[group][0]];
+    const auto row1diff = diff[DFA::FaultIndex[group][1]];
+    const auto row2diff = diff[DFA::FaultIndex[group][2]];
+    const auto row3diff = diff[DFA::FaultIndex[group][3]];
     const auto affected = row0diff != 0 && row1diff != 0 && row2diff != 0 && row3diff != 0;
     return affected;
 }
@@ -278,7 +283,7 @@ static inline void intersect_candidates(FaultCandidateList& candidates,
 
 template<typename DFA, typename T>
 static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_faults,
-                                                                    const __m128i ref) noexcept
+                                                                    const Fault ref) noexcept
 {
     std::array<FaultCandidateList, 4> keyCandidates;
 
@@ -313,7 +318,7 @@ static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_
 }
 
 template<typename DFA>
-bool solve_r9(const std::vector<__m128i>& r9_faults, const __m128i ref) noexcept
+bool solve_r9(const std::vector<Fault>& r9_faults, const Fault ref) noexcept
 {
     const auto groupIntersections = solve_r9_candidates<DFA>(r9_faults, ref);
 
@@ -367,9 +372,9 @@ bool solve_r9(const std::vector<__m128i>& r9_faults, const __m128i ref) noexcept
 }
 
 template<typename DFA>
-bool solve_r8(const std::vector<__m128i>& r8_faults, const __m128i ref) noexcept
+bool solve_r8(const std::vector<Fault>& r8_faults, const Fault ref) noexcept
 {
-    std::vector<__m128i> r9_faults;
+    std::vector<Fault> r9_faults;
     r9_faults.reserve(r8_faults.size() * 4);
 
     for (auto& fault : r8_faults)

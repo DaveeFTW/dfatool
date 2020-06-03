@@ -1,4 +1,6 @@
+#include "decrypt.h"
 #include "dfa.h"
+#include "encrypt.h"
 
 #include <algorithm>
 #include <chrono>

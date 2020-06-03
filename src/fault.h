@@ -2,6 +2,9 @@
 
 #include "aestools.h"
 #include "set.h"
+#include "u128.h"
+
+using Fault = u128;
 
 struct FaultCandidate
 {
@@ -29,3 +32,45 @@ struct FaultCandidate
 
     std::array<Set, 4> values;
 };
+
+struct FaultCandidateList
+{
+    std::array<FaultCandidate, 1024> candidates;
+    std::size_t count{ 0 };
+
+    bool solved() const
+    {
+        const auto& candidate = candidates[0];
+        return candidate.values[0].count == 1 && candidate.values[1].count == 1 &&
+               candidate.values[2].count == 1 && candidate.values[3].count == 1 && count == 1;
+    }
+};
+
+void intersect_candidates(FaultCandidateList& candidates, const FaultCandidateList& new_candidates)
+{
+    FaultCandidateList intersect;
+
+    for (auto i = 0u; i < new_candidates.count; ++i)
+    {
+        for (auto j = 0u; j < candidates.count; ++j)
+        {
+            if (candidates.candidates[j].intersects(new_candidates.candidates[i]))
+            {
+                intersect.candidates[intersect.count++] =
+                    candidates.candidates[j].intersect(new_candidates.candidates[i]);
+            }
+        }
+    }
+
+    if (intersect.count != 0)
+    {
+        candidates = intersect;
+    }
+    else
+    {
+        for (auto i = 0u; i < new_candidates.count; ++i)
+        {
+            candidates.candidates[candidates.count++] = new_candidates.candidates[i];
+        }
+    }
+}

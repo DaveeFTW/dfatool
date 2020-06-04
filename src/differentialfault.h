@@ -33,82 +33,85 @@ public:
     }
 
 private:
-    auto generate_zmap(std::uint8_t diff, std::uint8_t multiplier) const
+    struct ZMap
     {
-        // we have the equation:
-        // Y0 = S(X0) + S(C*Z + X0)
-        // where Y0 is our diff, C is our multiplier, Z is our fault, and X0 is some unknown AES
-        // state we can rework this: Y0 = S(X0) + S(C*Z + X0) S(C*Z + X0) = Y0 + S(X0) C*Z + X0 =
-        // InvSBox(Y0 + S(X0)) C*Z = InvSBox(Y0 + S(X0)) + X0 Z = InvMult(C)*(InvSBox(Y0 + S(X0)) +
-        // X0)
-        std::array<std::uint8_t, 256> zmap;
+        constexpr auto intersectionForRow(unsigned int row) const { return (1u << row); }
 
-        for (auto X0 = 0u; X0 < zmap.size(); ++X0)
+        constexpr auto allIntersected() const
         {
-            zmap[X0] = aes_gf_imult[multiplier][DFA::inverse_box[diff ^ DFA::forward_box[X0]] ^ X0];
+            return intersection == (intersectionForRow(0) | intersectionForRow(1) |
+                                    intersectionForRow(2) | intersectionForRow(3));
         }
 
-        return zmap;
+        void addIntersection(int row) { intersection |= intersectionForRow(row); }
+
+        unsigned int intersection{ 0 };
+        FaultCandidate candidate;
+    };
+
+    auto generate_x_to_z_map(std::uint8_t diff, std::uint8_t multiplier) const
+    {
+        // clang-format off
+        // we have the equation:
+        // Y = S(X) + S(C*Z + X)
+        // where Y is our diff, C is our multiplier, Z is our fault, and X is some unknown AES
+        // state we can rework this:
+        // Y = S(X) + S(C*Z + X)
+        // S(C*Z + X) = Y + S(X)
+        // C*Z + X = InvSBox(Y + S(X))
+        // C*Z = InvSBox(Y + S(X)) + X
+        // Z = InvMult(C)*(InvSBox(Y + S(X)) + X)
+        // clang-format on
+
+        std::array<std::uint8_t, 256> xzmap;
+
+        // build a mapping of all possible unknowns (by index) to possible Z values.
+        for (auto X = 0u; X < xzmap.size(); ++X)
+        {
+            xzmap[X] = aes_gf_imult[multiplier][DFA::inverse_box[diff ^ DFA::forward_box[X]] ^ X];
+        }
+
+        return xzmap;
     }
 
     void candidates_for_fault(FaultCandidateList& candidates, int group, int faultrow) const
     {
-        constexpr auto Row0Intersection = (1 << 0);
-        constexpr auto Row1Intersection = (1 << 1);
-        constexpr auto Row2Intersection = (1 << 2);
-        constexpr auto Row3Intersection = (1 << 3);
-        constexpr auto AllRowIntersection =
-            Row0Intersection | Row1Intersection | Row2Intersection | Row3Intersection;
+        const std::array rows = { generate_x_to_z_map(m_diff[DFA::FaultIndex[group][0]],
+                                                      DFA::mix_columns_matrix[faultrow][0]),
+                                  generate_x_to_z_map(m_diff[DFA::FaultIndex[group][1]],
+                                                      DFA::mix_columns_matrix[faultrow][1]),
+                                  generate_x_to_z_map(m_diff[DFA::FaultIndex[group][2]],
+                                                      DFA::mix_columns_matrix[faultrow][2]),
+                                  generate_x_to_z_map(m_diff[DFA::FaultIndex[group][3]],
+                                                      DFA::mix_columns_matrix[faultrow][3]) };
+        static_assert(rows.size() == 4);
 
-        const auto row0 =
-            generate_zmap(m_diff[DFA::FaultIndex[group][0]], DFA::mix_columns_matrix[faultrow][0]);
-        const auto row1 =
-            generate_zmap(m_diff[DFA::FaultIndex[group][1]], DFA::mix_columns_matrix[faultrow][1]);
-        const auto row2 =
-            generate_zmap(m_diff[DFA::FaultIndex[group][2]], DFA::mix_columns_matrix[faultrow][2]);
-        const auto row3 =
-            generate_zmap(m_diff[DFA::FaultIndex[group][3]], DFA::mix_columns_matrix[faultrow][3]);
+        // in reality there are only 127 unique values of Z. We use 256 values to cover the entire
+        // range of an 8 bit integer so we can cleanly index the Z values into this array.
+        std::array<ZMap, 256> zmap;
 
-        std::array<std::uint8_t, 256> intersections = { 0 };
-
-        for (auto i = 0; i < 256; ++i)
+        // now we combine all these values
+        for (auto X = 0u; X < 256u; ++X)
         {
-            intersections[row0[i]] |= Row0Intersection;
-            intersections[row1[i]] |= Row1Intersection;
-            intersections[row2[i]] |= Row2Intersection;
-            intersections[row3[i]] |= Row3Intersection;
+            for (auto row = 0u; row < rows.size(); ++row)
+            {
+                auto& Z = zmap[rows[row][X]];
+                Z.addIntersection(row);
+
+                // store the X values into the candidate for the row they were found in
+                Z.candidate.add(X, row);
+            }
         }
 
-        for (auto i = 0u; i < intersections.size(); ++i)
+        for (const auto& z : zmap)
         {
-            // we only care about intersections that appear in each row
-            if (intersections[i] != AllRowIntersection)
-                continue;
-
-            auto& candidate = candidates.candidates[candidates.count++];
-
-            for (auto j = 0u; j < 256u; ++j)
+            // we only care about z values that appear in each row
+            if (!z.allIntersected())
             {
-                if (row0[j] == i)
-                {
-                    candidate.add(DFA::forward_box[j] ^ m_ref[DFA::FaultIndex[group][0]], 0);
-                }
-
-                if (row1[j] == i)
-                {
-                    candidate.add(DFA::forward_box[j] ^ m_ref[DFA::FaultIndex[group][1]], 1);
-                }
-
-                if (row2[j] == i)
-                {
-                    candidate.add(DFA::forward_box[j] ^ m_ref[DFA::FaultIndex[group][2]], 2);
-                }
-
-                if (row3[j] == i)
-                {
-                    candidate.add(DFA::forward_box[j] ^ m_ref[DFA::FaultIndex[group][3]], 3);
-                }
+                continue;
             }
+
+            candidates.candidates.push_back(z.candidate);
         }
     }
 

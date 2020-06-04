@@ -35,14 +35,18 @@ struct FaultCandidate
 
 struct FaultCandidateList
 {
-    std::array<FaultCandidate, 1024> candidates;
-    std::size_t count{ 0 };
+    std::vector<FaultCandidate> candidates;
 
     bool solved() const
     {
+        if (candidates.size() != 1)
+        {
+            return false;
+        }
+
         const auto& candidate = candidates[0];
         return candidate.values[0].count == 1 && candidate.values[1].count == 1 &&
-               candidate.values[2].count == 1 && candidate.values[3].count == 1 && count == 1;
+               candidate.values[2].count == 1 && candidate.values[3].count == 1;
     }
 };
 
@@ -50,27 +54,26 @@ void intersect_candidates(FaultCandidateList& candidates, const FaultCandidateLi
 {
     FaultCandidateList intersect;
 
-    for (auto i = 0u; i < new_candidates.count; ++i)
+    for (const auto& new_candidate : new_candidates.candidates)
     {
-        for (auto j = 0u; j < candidates.count; ++j)
+        for (const auto& candidate : candidates.candidates)
         {
-            if (candidates.candidates[j].intersects(new_candidates.candidates[i]))
+            if (candidate.intersects(new_candidate))
             {
-                intersect.candidates[intersect.count++] =
-                    candidates.candidates[j].intersect(new_candidates.candidates[i]);
+                intersect.candidates.push_back(candidate.intersect(new_candidate));
             }
         }
     }
 
-    if (intersect.count != 0)
+    if (!intersect.candidates.empty())
     {
         candidates = intersect;
     }
     else
     {
-        for (auto i = 0u; i < new_candidates.count; ++i)
+        for (const auto& new_candidate : new_candidates.candidates)
         {
-            candidates.candidates[candidates.count++] = new_candidates.candidates[i];
+            candidates.candidates.push_back(new_candidate);
         }
     }
 }

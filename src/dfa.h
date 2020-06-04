@@ -73,27 +73,36 @@ bool solve_r9(const std::vector<Fault>& r9_faults, const Fault ref) noexcept
     if (groupIntersections[0].solved() && groupIntersections[1].solved() &&
         groupIntersections[2].solved() && groupIntersections[3].solved())
     {
-        std::array<uint8_t, 16> data;
+        // the final value we have is an X belonging to the function O = K10 ^ S(X)
+        // to get the key component, we need to perform: K10 = S(X) ^ O
+        // where, K10 is the 10th round key (for encrypt, in case of decrypt its K0), O is the
+        // expected output (aka ref), and S() is the sbox function (for decrypt its the inverse
+        // sbox)
+        std::array<uint8_t, 16> data = ref;
 
-        data[DFA::FaultIndex[0][0]] = groupIntersections[0].candidates[0].values[0].values[0];
-        data[DFA::FaultIndex[0][1]] = groupIntersections[0].candidates[0].values[1].values[0];
-        data[DFA::FaultIndex[0][2]] = groupIntersections[0].candidates[0].values[2].values[0];
-        data[DFA::FaultIndex[0][3]] = groupIntersections[0].candidates[0].values[3].values[0];
+        const auto group0 = groupIntersections[0].candidates[0];
+        data[DFA::FaultIndex[0][0]] ^= DFA::forward_box[group0.values[0].values[0]];
+        data[DFA::FaultIndex[0][1]] ^= DFA::forward_box[group0.values[1].values[0]];
+        data[DFA::FaultIndex[0][2]] ^= DFA::forward_box[group0.values[2].values[0]];
+        data[DFA::FaultIndex[0][3]] ^= DFA::forward_box[group0.values[3].values[0]];
 
-        data[DFA::FaultIndex[1][0]] = groupIntersections[1].candidates[0].values[0].values[0];
-        data[DFA::FaultIndex[1][1]] = groupIntersections[1].candidates[0].values[1].values[0];
-        data[DFA::FaultIndex[1][2]] = groupIntersections[1].candidates[0].values[2].values[0];
-        data[DFA::FaultIndex[1][3]] = groupIntersections[1].candidates[0].values[3].values[0];
+        const auto group1 = groupIntersections[1].candidates[0];
+        data[DFA::FaultIndex[1][0]] ^= DFA::forward_box[group1.values[0].values[0]];
+        data[DFA::FaultIndex[1][1]] ^= DFA::forward_box[group1.values[1].values[0]];
+        data[DFA::FaultIndex[1][2]] ^= DFA::forward_box[group1.values[2].values[0]];
+        data[DFA::FaultIndex[1][3]] ^= DFA::forward_box[group1.values[3].values[0]];
 
-        data[DFA::FaultIndex[2][0]] = groupIntersections[2].candidates[0].values[0].values[0];
-        data[DFA::FaultIndex[2][1]] = groupIntersections[2].candidates[0].values[1].values[0];
-        data[DFA::FaultIndex[2][2]] = groupIntersections[2].candidates[0].values[2].values[0];
-        data[DFA::FaultIndex[2][3]] = groupIntersections[2].candidates[0].values[3].values[0];
+        const auto group2 = groupIntersections[2].candidates[0];
+        data[DFA::FaultIndex[2][0]] ^= DFA::forward_box[group2.values[0].values[0]];
+        data[DFA::FaultIndex[2][1]] ^= DFA::forward_box[group2.values[1].values[0]];
+        data[DFA::FaultIndex[2][2]] ^= DFA::forward_box[group2.values[2].values[0]];
+        data[DFA::FaultIndex[2][3]] ^= DFA::forward_box[group2.values[3].values[0]];
 
-        data[DFA::FaultIndex[3][0]] = groupIntersections[3].candidates[0].values[0].values[0];
-        data[DFA::FaultIndex[3][1]] = groupIntersections[3].candidates[0].values[1].values[0];
-        data[DFA::FaultIndex[3][2]] = groupIntersections[3].candidates[0].values[2].values[0];
-        data[DFA::FaultIndex[3][3]] = groupIntersections[3].candidates[0].values[3].values[0];
+        const auto group3 = groupIntersections[3].candidates[0];
+        data[DFA::FaultIndex[3][0]] ^= DFA::forward_box[group3.values[0].values[0]];
+        data[DFA::FaultIndex[3][1]] ^= DFA::forward_box[group3.values[1].values[0]];
+        data[DFA::FaultIndex[3][2]] ^= DFA::forward_box[group3.values[2].values[0]];
+        data[DFA::FaultIndex[3][3]] ^= DFA::forward_box[group3.values[3].values[0]];
 
         printf("Found key: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
                data.data()[0],

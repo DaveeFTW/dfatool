@@ -7,8 +7,7 @@ class DifferentialFault
 {
 public:
     DifferentialFault(const Fault& fault, const Fault& reference)
-        : m_ref{ reference }
-        , m_diff{ xor128(fault, m_ref) }
+        : m_diff{ xor128(fault, reference) }
     {
     }
 
@@ -115,5 +114,5 @@ private:
         }
     }
 
-    const Fault m_ref, m_diff;
+    const Fault m_diff;
 };

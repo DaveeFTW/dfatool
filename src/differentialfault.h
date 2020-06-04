@@ -7,13 +7,12 @@ class DifferentialFault
 {
 public:
     DifferentialFault(const Fault& fault, const Fault& reference)
-        : m_fault{ fault }
-        , m_ref{ reference }
-        , m_diff{ xor128(m_fault, m_ref) }
+        : m_ref{ reference }
+        , m_diff{ xor128(fault, m_ref) }
     {
     }
 
-    bool is_group_affected(int group)
+    bool is_group_affected(int group) const
     {
         const auto row0diff = m_diff[DFA::FaultIndex[group][0]];
         const auto row1diff = m_diff[DFA::FaultIndex[group][1]];
@@ -23,7 +22,7 @@ public:
         return affected;
     }
 
-    FaultCandidateList candidates_for_group(int group)
+    FaultCandidateList candidates_for_group(int group) const
     {
         FaultCandidateList candidates;
         candidates_for_fault(candidates, group, 0);
@@ -34,7 +33,7 @@ public:
     }
 
 private:
-    auto generate_zmap(std::uint8_t diff, std::uint8_t multiplier)
+    auto generate_zmap(std::uint8_t diff, std::uint8_t multiplier) const
     {
         // we have the equation:
         // Y0 = S(X0) + S(C*Z + X0)
@@ -52,7 +51,7 @@ private:
         return zmap;
     }
 
-    void candidates_for_fault(FaultCandidateList& candidates, int group, int faultrow)
+    void candidates_for_fault(FaultCandidateList& candidates, int group, int faultrow) const
     {
         constexpr auto Row0Intersection = (1 << 0);
         constexpr auto Row1Intersection = (1 << 1);
@@ -113,5 +112,5 @@ private:
         }
     }
 
-    Fault m_fault, m_ref, m_diff;
+    const Fault m_ref, m_diff;
 };

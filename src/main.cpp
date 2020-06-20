@@ -24,7 +24,7 @@ namespace
         Round9
     };
 
-    std::optional<std::vector<Fault>> readFaults(const std::string& path)
+    std::optional<std::vector<u128>> readFaults(const std::string& path)
     {
         std::ifstream file{ path };
 
@@ -34,7 +34,7 @@ namespace
             return {};
         }
 
-        std::vector<Fault> faults;
+        std::vector<u128> faults;
         std::string line;
 
         while (std::getline(file, line))
@@ -95,7 +95,7 @@ namespace
     };
 
     template<typename Solver>
-    bool solve(const std::vector<Fault>& faults)
+    bool solve(const std::vector<u128>& faults)
     {
         for (auto& ref : faults)
         {
@@ -107,7 +107,7 @@ namespace
     }
 
     template<typename DFA>
-    bool solve(Type type, const std::vector<Fault>& faults)
+    bool solve(Type type, const std::vector<u128>& faults)
     {
         switch (type)
         {
@@ -119,7 +119,7 @@ namespace
         }
     }
 
-    bool solve(Mode mode, Type type, const std::vector<Fault>& faults)
+    bool solve(Mode mode, Type type, const std::vector<u128>& faults)
     {
         switch (mode)
         {

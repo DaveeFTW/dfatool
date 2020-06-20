@@ -31,7 +31,6 @@ struct EncryptDFA
                                       O, O, F, O,
                                       O, F, O, O,
                                       F, O, O, O};
-
         // clang-format on
 
         return std::array{ mask0, mask1, mask2, mask3 };

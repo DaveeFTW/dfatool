@@ -1,12 +1,12 @@
 #pragma once
 
-#include "fault.h"
+#include "candidate.h"
 
 template<typename DFA>
 class DifferentialFault
 {
 public:
-    DifferentialFault(const Fault& fault, const Fault& reference)
+    DifferentialFault(const u128& fault, const u128& reference)
         : m_diff{ xor128(fault, reference) }
     {
     }
@@ -114,5 +114,5 @@ private:
         }
     }
 
-    const Fault m_diff;
+    const u128 m_diff;
 };

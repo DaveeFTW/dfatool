@@ -1,22 +1,23 @@
 #pragma once
 
 #include "aestools.h"
+#include "candidate.h"
 #include "differentialfault.h"
-#include "fault.h"
+#include "u128.h"
 
 #include <array>
 #include <cstdint>
 #include <vector>
 
 template<typename DFA>
-static inline auto convert_r8_fault(Fault r8_fault, Fault r9_reference)
+static inline auto convert_r8_fault(u128 r8_fault, u128 r9_reference)
 {
     const auto masks = DFA::blend_mask();
     static_assert(masks.size() == 4);
 
-    std::array<Fault, 4> r9_faults;
+    std::array<u128, 4> r9_faults;
 
-    for (auto i = 0u; i < sizeof(Fault); ++i)
+    for (auto i = 0u; i < sizeof(u128); ++i)
     {
         r9_faults[0][i] = masks[0][i] ? (r8_fault[i]) : (r9_reference[i]);
         r9_faults[1][i] = masks[1][i] ? (r8_fault[i]) : (r9_reference[i]);
@@ -29,7 +30,7 @@ static inline auto convert_r8_fault(Fault r8_fault, Fault r9_reference)
 
 template<typename DFA, typename T>
 static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_faults,
-                                                                    const Fault ref) noexcept
+                                                                    const u128 ref) noexcept
 {
     std::array<FaultCandidateList, 4> keyCandidates;
 
@@ -66,7 +67,7 @@ static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_
 }
 
 template<typename DFA>
-bool solve_r9(const std::vector<Fault>& r9_faults, const Fault ref) noexcept
+bool solve_r9(const std::vector<u128>& r9_faults, const u128 ref) noexcept
 {
     const auto groupIntersections = solve_r9_candidates<DFA>(r9_faults, ref);
 
@@ -129,9 +130,9 @@ bool solve_r9(const std::vector<Fault>& r9_faults, const Fault ref) noexcept
 }
 
 template<typename DFA>
-bool solve_r8(const std::vector<Fault>& r8_faults, const Fault ref) noexcept
+bool solve_r8(const std::vector<u128>& r8_faults, const u128 ref) noexcept
 {
-    std::vector<Fault> r9_faults;
+    std::vector<u128> r9_faults;
     r9_faults.reserve(r8_faults.size() * 4);
 
     for (auto& fault : r8_faults)

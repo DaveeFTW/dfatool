@@ -5,6 +5,7 @@ project(dfatool)
 set (SOURCES
     "src/main.cpp"
     "src/candidate.cpp"
+    "src/set.cpp"
     "src/u128.cpp"
 )
 

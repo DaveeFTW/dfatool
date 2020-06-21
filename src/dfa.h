@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 template<typename DFA>
@@ -67,7 +68,7 @@ static inline std::array<FaultCandidateList, 4> solve_r9_candidates(const T& r9_
 }
 
 template<typename DFA>
-bool solve_r9(const std::vector<u128>& r9_faults, const u128 ref) noexcept
+std::optional<u128> solve_r9(const std::vector<u128>& r9_faults, const u128 ref) noexcept
 {
     const auto groupIntersections = solve_r9_candidates<DFA>(r9_faults, ref);
 
@@ -79,58 +80,40 @@ bool solve_r9(const std::vector<u128>& r9_faults, const u128 ref) noexcept
         // where, K10 is the 10th round key (for encrypt, in case of decrypt its K0), O is the
         // expected output (aka ref), and S() is the sbox function (for decrypt its the inverse
         // sbox)
-        std::array<uint8_t, 16> data = ref;
+        u128 key = ref;
 
         const auto group0 = groupIntersections[0].candidates[0];
-        data[DFA::FaultIndex[0][0]] ^= DFA::forward_box[group0.values[0].values[0]];
-        data[DFA::FaultIndex[0][1]] ^= DFA::forward_box[group0.values[1].values[0]];
-        data[DFA::FaultIndex[0][2]] ^= DFA::forward_box[group0.values[2].values[0]];
-        data[DFA::FaultIndex[0][3]] ^= DFA::forward_box[group0.values[3].values[0]];
+        key[DFA::FaultIndex[0][0]] ^= DFA::forward_box[group0.values[0].values[0]];
+        key[DFA::FaultIndex[0][1]] ^= DFA::forward_box[group0.values[1].values[0]];
+        key[DFA::FaultIndex[0][2]] ^= DFA::forward_box[group0.values[2].values[0]];
+        key[DFA::FaultIndex[0][3]] ^= DFA::forward_box[group0.values[3].values[0]];
 
         const auto group1 = groupIntersections[1].candidates[0];
-        data[DFA::FaultIndex[1][0]] ^= DFA::forward_box[group1.values[0].values[0]];
-        data[DFA::FaultIndex[1][1]] ^= DFA::forward_box[group1.values[1].values[0]];
-        data[DFA::FaultIndex[1][2]] ^= DFA::forward_box[group1.values[2].values[0]];
-        data[DFA::FaultIndex[1][3]] ^= DFA::forward_box[group1.values[3].values[0]];
+        key[DFA::FaultIndex[1][0]] ^= DFA::forward_box[group1.values[0].values[0]];
+        key[DFA::FaultIndex[1][1]] ^= DFA::forward_box[group1.values[1].values[0]];
+        key[DFA::FaultIndex[1][2]] ^= DFA::forward_box[group1.values[2].values[0]];
+        key[DFA::FaultIndex[1][3]] ^= DFA::forward_box[group1.values[3].values[0]];
 
         const auto group2 = groupIntersections[2].candidates[0];
-        data[DFA::FaultIndex[2][0]] ^= DFA::forward_box[group2.values[0].values[0]];
-        data[DFA::FaultIndex[2][1]] ^= DFA::forward_box[group2.values[1].values[0]];
-        data[DFA::FaultIndex[2][2]] ^= DFA::forward_box[group2.values[2].values[0]];
-        data[DFA::FaultIndex[2][3]] ^= DFA::forward_box[group2.values[3].values[0]];
+        key[DFA::FaultIndex[2][0]] ^= DFA::forward_box[group2.values[0].values[0]];
+        key[DFA::FaultIndex[2][1]] ^= DFA::forward_box[group2.values[1].values[0]];
+        key[DFA::FaultIndex[2][2]] ^= DFA::forward_box[group2.values[2].values[0]];
+        key[DFA::FaultIndex[2][3]] ^= DFA::forward_box[group2.values[3].values[0]];
 
         const auto group3 = groupIntersections[3].candidates[0];
-        data[DFA::FaultIndex[3][0]] ^= DFA::forward_box[group3.values[0].values[0]];
-        data[DFA::FaultIndex[3][1]] ^= DFA::forward_box[group3.values[1].values[0]];
-        data[DFA::FaultIndex[3][2]] ^= DFA::forward_box[group3.values[2].values[0]];
-        data[DFA::FaultIndex[3][3]] ^= DFA::forward_box[group3.values[3].values[0]];
+        key[DFA::FaultIndex[3][0]] ^= DFA::forward_box[group3.values[0].values[0]];
+        key[DFA::FaultIndex[3][1]] ^= DFA::forward_box[group3.values[1].values[0]];
+        key[DFA::FaultIndex[3][2]] ^= DFA::forward_box[group3.values[2].values[0]];
+        key[DFA::FaultIndex[3][3]] ^= DFA::forward_box[group3.values[3].values[0]];
 
-        printf("Found key: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
-               data.data()[0],
-               data.data()[1],
-               data.data()[2],
-               data.data()[3],
-               data.data()[4],
-               data.data()[5],
-               data.data()[6],
-               data.data()[7],
-               data.data()[8],
-               data.data()[9],
-               data.data()[10],
-               data.data()[11],
-               data.data()[12],
-               data.data()[13],
-               data.data()[14],
-               data.data()[15]);
-
-        return true;
+        return key;
     }
 
-    return false;
+    return {};
 }
 
 template<typename DFA>
-bool solve_r8(const std::vector<u128>& r8_faults, const u128 ref) noexcept
+std::optional<u128> solve_r8(const std::vector<u128>& r8_faults, const u128 ref) noexcept
 {
     std::vector<u128> r9_faults;
     r9_faults.reserve(r8_faults.size() * 4);

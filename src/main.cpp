@@ -95,19 +95,23 @@ namespace
     };
 
     template<typename Solver>
-    bool solve(const std::vector<u128>& faults)
+    std::optional<u128> solve(const std::vector<u128>& faults)
     {
         for (auto& ref : faults)
         {
-            if (Solver::solve(faults, ref))
-                return true;
+            auto solution = Solver::solve(faults, ref);
+
+            if (solution)
+            {
+                return solution;
+            }
         }
 
-        return false;
+        return {};
     }
 
     template<typename DFA>
-    bool solve(Type type, const std::vector<u128>& faults)
+    std::optional<u128> solve(Type type, const std::vector<u128>& faults)
     {
         switch (type)
         {
@@ -119,7 +123,7 @@ namespace
         }
     }
 
-    bool solve(Mode mode, Type type, const std::vector<u128>& faults)
+    std::optional<u128> solve(Mode mode, Type type, const std::vector<u128>& faults)
     {
         switch (mode)
         {
@@ -195,7 +199,11 @@ int main(int argc, char* argv[])
     end = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsed_seconds = end - start;
 
-    if (!solution)
+    if (solution)
+    {
+        std::cout << "Found key: " << std::uppercase << std::hex << solution.value() << std::endl;
+    }
+    else
     {
         std::cout << "failed: could not find a key" << std::endl;
     }
